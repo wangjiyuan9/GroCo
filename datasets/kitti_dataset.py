@@ -40,7 +40,7 @@ class KITTIDataset(MonoDataset):
         sequences = ["2011_09_26", "2011_09_28", "2011_09_29", "2011_09_30", "2011_10_03"]
         self.calibrations = {}
         for seq in sequences:
-            data = load_calib_cam_to_cam(os.path.join(self.data_path, seq))
+            data = load_calib_cam_to_cam(os.path.join(self.data_path, "rgb", seq))
             intrinsic_scaled = data[f"K_cam2"].copy()
             intrinsic_scaled[0] *= self.width / data["im_size_2"][0]
             intrinsic_scaled[1] *= self.height / data["im_size_2"][1]
@@ -112,7 +112,7 @@ class KITTIRAWDataset(KITTIDataset):
 
     def get_image_path(self, folder, frame_index, side):
         f_str = "{:010d}{}".format(frame_index, self.img_ext)
-        image_path = os.path.join(self.data_path, folder, "image_0{}/data".format(self.side_map[side]), f_str)
+        image_path = os.path.join(self.data_path,"rgb", folder[11:], "image_0{}/data".format(self.side_map[side]), f_str)
         return image_path
 
     def get_depth(self, folder, frame_index, side, do_flip):
@@ -189,11 +189,10 @@ def load_calib_cam_to_cam(path):
         data[f"P_rect_{i}0"] = p
 
     # Get image sizes
-
     for i in range(4):
         data[f"im_size_{i}"] = filedata[f"S_rect_0{i}"]
 
-    # Compute the rectified extrinsics from cam0 to camN
+    # 计算从 cam0 到 camN 的校正外参矩阵，并存储在 data 字典中，键名为 T_cam{i}_rect。
     rectified_extrinsics = [np.eye(4) for _ in range(4)]
     for i in range(4):
         rectified_extrinsics[i][0, 3] = p_rect[i][0, 3] / p_rect[i][0, 0]
@@ -202,7 +201,7 @@ def load_calib_cam_to_cam(path):
         # Compute the camera intrinsics
         data[f"K_cam{i}"] = p_rect[i][0:3, 0:3]
 
-    # Create 4x4 matrices from the rectifying rotation matrices
+    # 读取并重塑校正旋转矩阵，存储在 r_rect 和 data 字典中，键名为 R_rect_{i}0。
     r_rect = None
     if "R_rect_00" in filedata:
         r_rect = [np.eye(4) for _ in range(4)]
@@ -210,8 +209,7 @@ def load_calib_cam_to_cam(path):
             r_rect[i][0:3, 0:3] = np.reshape(filedata["R_rect_0" + str(i)], (3, 3))
             data[f"R_rect_{i}0"] = r_rect[i]
 
-    # Load the rigid transformation from velodyne coordinates
-    # to unrectified cam0 coordinates
+    # Load the rigid transformation from velodyne coordinates to unrectified cam0 coordinates
 
     t_cam0unrect_velo = load_calib_rigid(os.path.join(path, "calib_velo_to_cam.txt"))
 

@@ -12,6 +12,7 @@ import networks
 from tqdm import trange, tqdm
 import cv2
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 cv2.setNumThreads(0)  # This speeds up evaluation 5x on our unix systems (OpenCV 3.3.1)
 np.set_printoptions(precision=2, suppress=True)
@@ -195,8 +196,7 @@ def evaluate(opt):
 
     preds = np.concatenate(preds)
 
-    gt_path = os.path.join(splits_dir, opt.eval_split, "gt_depths.npz")
-    gt_depths = np.load(gt_path, fix_imports=True, encoding="latin1", allow_pickle=True)["data"]
+    gt_depths = np.load(os.path.join(opt.data_path, "gt_depths.npy"), allow_pickle=True)
 
     print("-> Evaluating")
     print("   Mono evaluation")
@@ -262,7 +262,7 @@ class Parser:
             "--data_path",
             type=str,
             help="path to the training data",
-            default=os.path.join("/data/Kitti/"),
+            default=os.path.join("/opt/data/private/wjy/data/kitti"),
         )
         self.parser.add_argument(
             "--num_layers",
@@ -285,11 +285,11 @@ class Parser:
             help="scales used in the loss",
             default=[0, 1, 2, 3],
         )
-        self.parser.add_argument("--load_weights_folder", type=str, default="weights/", help="name of model to load")
+        self.parser.add_argument("--load_weights_folder", type=str, default="ckpt/grdLR", help="name of model to load")
         self.parser.add_argument(
             "--eval_split",
             type=str,
-            default="eigen_benchmark",
+            default="eigen",
             choices=["eigen", "eigen_benchmark", "benchmark", "odom_9", "odom_10"],
             help="which split to run eval on",
         )
